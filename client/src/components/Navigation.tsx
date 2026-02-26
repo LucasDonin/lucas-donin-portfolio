@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { gsap } from 'gsap';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Moon, Sun } from 'lucide-react';
 
 const navItems = [
   { label: 'Sobre', href: '#sobre' },
@@ -9,6 +11,7 @@ const navItems = [
 ];
 
 export default function Navigation() {
+  const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,13 +66,13 @@ export default function Navigation() {
             : 'py-5'
         }`}
         style={{
-          backgroundColor: scrolled ? 'oklch(0.12 0.025 265 / 0.85)' : 'transparent',
-          borderBottom: scrolled ? '1px solid oklch(1 0 0 / 0.05)' : '1px solid transparent',
+          backgroundColor: scrolled ? 'oklch(1 0 0 / 0.95)' : 'transparent',
+          borderBottom: scrolled ? '1px solid oklch(0.15 0 0 / 0.15)' : '1px solid transparent',
         }}
       >
         <div className="container flex items-center justify-between">
-          <a href="#" className="font-display text-xl tracking-tight" style={{ color: 'oklch(0.92 0.02 80)' }}>
-            Lucas<span className="text-gold"> Donin</span>
+          <a href="#" className="flex items-center h-8">
+            <img src="/logo-donin.svg" alt="Donin Design Studio" className="h-full w-auto" />
           </a>
 
           {/* Desktop nav */}
@@ -82,8 +85,8 @@ export default function Navigation() {
                 className="relative text-sm tracking-wide transition-colors duration-300 group"
                 style={{
                   color: activeSection === item.href.slice(1)
-                    ? 'oklch(0.72 0.12 75)'
-                    : 'oklch(0.70 0.02 80)',
+            ? 'oklch(0.72 0.12 75)'
+                : 'oklch(0.35 0 0)',
                   fontFamily: 'var(--font-body)',
                 }}
               >
@@ -104,13 +107,26 @@ export default function Navigation() {
               className="text-sm px-5 py-2 rounded-sm transition-all duration-300 hover:scale-105"
               style={{
                 backgroundColor: 'oklch(0.72 0.12 75)',
-                color: 'oklch(0.12 0.025 265)',
+                color: theme === 'dark' ? 'oklch(0.12 0 0)' : 'oklch(0.15 0 0)',
                 fontFamily: 'var(--font-body)',
                 fontWeight: 500,
               }}
             >
               Behance
             </a>
+            {toggleTheme && (
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-sm transition-all duration-300 hover:scale-110"
+                style={{
+                  backgroundColor: 'oklch(0.72 0.12 75)',
+                  color: theme === 'dark' ? 'oklch(0.12 0 0)' : 'oklch(0.15 0 0)',
+                }}
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -122,21 +138,21 @@ export default function Navigation() {
             <span
               className="block w-6 h-[1.5px] transition-all duration-300"
               style={{
-                backgroundColor: 'oklch(0.92 0.02 80)',
+                backgroundColor: 'oklch(1 0 0)',
                 transform: menuOpen ? 'rotate(45deg) translateY(6px)' : 'none',
               }}
             />
             <span
               className="block w-6 h-[1.5px] transition-all duration-300"
               style={{
-                backgroundColor: 'oklch(0.92 0.02 80)',
+                backgroundColor: 'oklch(1 0 0)',
                 opacity: menuOpen ? 0 : 1,
               }}
             />
             <span
               className="block w-6 h-[1.5px] transition-all duration-300"
               style={{
-                backgroundColor: 'oklch(0.92 0.02 80)',
+                backgroundColor: 'oklch(1 0 0)',
                 transform: menuOpen ? 'rotate(-45deg) translateY(-6px)' : 'none',
               }}
             />
@@ -157,8 +173,8 @@ export default function Navigation() {
             href={item.href}
             onClick={(e) => handleNavClick(e, item.href)}
             className="font-display text-3xl tracking-tight transition-all duration-300"
-            style={{
-              color: 'oklch(0.92 0.02 80)',
+              style={{
+                color: 'oklch(0.15 0 0)',
               transitionDelay: menuOpen ? `${i * 0.1}s` : '0s',
               transform: menuOpen ? 'translateY(0)' : 'translateY(20px)',
               opacity: menuOpen ? 1 : 0,
@@ -174,7 +190,7 @@ export default function Navigation() {
           className="text-sm px-6 py-3 rounded-sm mt-4"
           style={{
             backgroundColor: 'oklch(0.72 0.12 75)',
-            color: 'oklch(0.12 0.025 265)',
+            color: 'oklch(0.15 0 0)',
             fontWeight: 500,
           }}
         >
@@ -204,7 +220,7 @@ export default function Navigation() {
                 height: activeSection === item.href.slice(1) ? '10px' : '6px',
                 backgroundColor: activeSection === item.href.slice(1)
                   ? 'oklch(0.72 0.12 75)'
-                  : 'oklch(0.92 0.02 80 / 0.3)',
+                  : 'oklch(0.15 0 0 / 0.3)',
                 boxShadow: activeSection === item.href.slice(1)
                   ? '0 0 10px oklch(0.72 0.12 75 / 0.5)'
                   : 'none',

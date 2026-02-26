@@ -88,7 +88,7 @@ export default function HeroSection() {
           className="hero-bg-img w-full h-full object-cover opacity-0"
         />
         <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to bottom, oklch(0 0 0 / 0.5) 0%, oklch(0 0 0 / 0.7) 60%, oklch(0 0 0) 100%)',
+          background: 'linear-gradient(to bottom, oklch(1 0 0 / 0.3) 0%, oklch(1 0 0 / 0.5) 60%, oklch(1 0 0) 100%)',
         }} />
       </div>
 
@@ -100,7 +100,7 @@ export default function HeroSection() {
         </p>
 
         <h1 className="font-display mb-6 md:mb-8 leading-[0.9] perspective-[800px]">
-          <span className="block text-[clamp(2.5rem,8vw,7rem)] font-bold tracking-tight" style={{ color: 'oklch(1 0 0)' }}>
+          <span className="block text-[clamp(2.5rem,8vw,7rem)] font-bold tracking-tight" style={{ color: 'oklch(0.15 0 0)' }}>
             {titleLine1.split('').map((char, i) => (
               <span key={`l1-${i}`} className="hero-char inline-block opacity-0" style={{ transformStyle: 'preserve-3d' }}>
                 {char === ' ' ? '\u00A0' : char}
@@ -124,7 +124,7 @@ export default function HeroSection() {
         }} />
 
         <p className="hero-desc max-w-lg mx-auto text-base md:text-lg leading-relaxed opacity-0"
-          style={{ color: 'oklch(0.65 0 0)', fontFamily: 'var(--font-body)', fontWeight: 400 }}>
+          style={{ color: 'oklch(0.35 0 0)', fontFamily: 'var(--font-body)', fontWeight: 400 }}>
           Quase uma década transformando marcas em experiências visuais memoráveis.
           Especialista em branding, packaging e direção de arte.
         </p>

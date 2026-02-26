@@ -8,7 +8,7 @@ import { useRef } from 'react';
 import { gsap } from 'gsap';
 import Footer from './Footer';
 
-const CTA_BG = 'https://private-us-east-1.manuscdn.com/sessionFile/R6alShkPWm8G70GRh8rSjP/sandbox/HqHNZxXiMOaW7jjlikc0Ld-img-5_1771979919000_na1fn_Y3RhLXNlY3Rpb24tYmc.jpg?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvUjZhbFNoa1BXbThHNzBHUmg4clNqUC9zYW5kYm94L0hxSE5aeFhpTU9hVzdqamxpa2MwTGQtaW1nLTVfMTc3MTk3OTkxOTAwMF9uYTFmbl9ZM1JoTFhObFkzUnBiMjR0WW1jLmpwZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=XJ6q5R7dxWn4-nJfFb9lPrXAwZkSps6Y-eUix42Jm1ce3ZuRNTVzJsk5ZMU8~6b9wNLeoRbeDZ6j3ziQAkfvfRbpUrwIwoyjIIzAcz5ELcRXy5iraVxFMGg7~Oys0RzvWYOv~pEDVyyi16ggcQu7BgL8P2hKIEZZ4Bc9yF~sy2b9asjCsmVD7OC9rHNOGER~hoMtakL06GlBHL2HdB1NNixaDPDYXTd6gNcHZ-esejtoiyupjx9MN95bIUHATWh9MXO~2fM5vlsT~CQb2M82scVyv6P2zJSK95zlkXXxkQWpLHW4vyPPu4Urr40T6geSbmcpJincxTmhpH1Q9PVkGg__';
+const CTA_BG = '/wallpaper-glass.jpg';
 
 const socialLinks = [
   { label: 'Behance', url: 'https://www.behance.net/LucasDoninn', icon: '→' },
@@ -27,10 +27,10 @@ export default function ContactSection() {
           <img
             src={CTA_BG}
             alt=""
-            className="w-full h-full object-cover opacity-30"
+            className="w-full h-full object-cover opacity-60"
           />
           <div className="absolute inset-0" style={{
-            background: 'linear-gradient(135deg, oklch(0 0 0 / 0.6) 0%, oklch(0 0 0 / 0.8) 100%)',
+            background: 'linear-gradient(135deg, oklch(1 0 0 / 0.4) 0%, oklch(1 0 0 / 0.6) 100%)',
           }} />
         </div>
 
@@ -53,13 +53,13 @@ export default function ContactSection() {
 
           {/* Main heading */}
           <h2 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[1.1] mb-6 md:mb-8 gsap-fade-up max-w-4xl mx-auto"
-            style={{ color: 'oklch(1 0 0)', fontWeight: 700 }}>
+            style={{ color: 'oklch(0.15 0 0)', fontWeight: 700 }}>
             Pronto para <span style={{ color: 'oklch(0.72 0.12 75)' }}>transformar sua marca?</span>
           </h2>
 
           {/* Subtitle */}
           <p className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-12 md:mb-16 gsap-fade-up"
-            style={{ color: 'oklch(0.8 0 0)' }}>
+            style={{ color: 'oklch(0.25 0 0)' }}>
             Estou sempre aberto a novos desafios e colaborações. Vamos conversar sobre seu projeto.
           </p>
 
@@ -81,7 +81,7 @@ export default function ContactSection() {
 
           {/* Social links */}
           <div className="mt-20 md:mt-32 flex flex-col items-center gap-8">
-            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'oklch(0.4 0 0)' }}>
+            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'oklch(0.25 0 0)' }}>
               Ou me encontre em
             </span>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10 gsap-stagger-parent">
@@ -92,7 +92,7 @@ export default function ContactSection() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gsap-stagger-child group relative text-sm md:text-base transition-all duration-300"
-                  style={{ color: 'oklch(1 0 0)' }}
+                  style={{ color: 'oklch(0.15 0 0)' }}
                 >
                   <span className="relative inline-flex items-center gap-2">
                     {link.label}

@@ -46,13 +46,13 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="preloader fixed inset-0 z-[100] flex flex-col items-center justify-center"
-      style={{ backgroundColor: 'oklch(0.10 0.025 265)' }}>
+      style={{ backgroundColor: 'oklch(1 0 0)' }}>
       <div className="preloader-name flex overflow-hidden mb-4">
         {nameChars.map((char, i) => (
           <span
             key={i}
             className="font-display text-4xl md:text-6xl tracking-tight inline-block opacity-0"
-            style={{ color: 'oklch(0.92 0.02 80)', transform: 'translateY(40px)' }}
+            style={{ color: 'oklch(0.15 0 0)', transform: 'translateY(40px)' }}
           >
             {char === ' ' ? '\u00A0' : char}
           </span>
@@ -63,7 +63,7 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
         Diretor de Arte
       </p>
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4">
-        <div className="w-48 h-[1px] bg-white/10 overflow-hidden">
+        <div className="w-48 h-[1px] bg-black/10 overflow-hidden">
           <div
             className="h-full transition-all duration-100 ease-linear"
             style={{
@@ -72,7 +72,7 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
             }}
           />
         </div>
-        <span className="text-xs tabular-nums text-cream-dim font-body" style={{ color: 'oklch(0.60 0.02 80)' }}>
+        <span className="text-xs tabular-nums text-cream-dim font-body" style={{ color: 'oklch(0.35 0 0)' }}>
           {progress}%
         </span>
       </div>
