@@ -6,6 +6,7 @@
 
 import { useRef } from 'react';
 import { gsap } from 'gsap';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Footer from './Footer';
 
 const CTA_BG = '/wallpaper-glass.jpg';
@@ -18,21 +19,18 @@ const socialLinks = [
 
 export default function ContactSection() {
   const bgRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   return (
     <>
-      <section id="contato" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background with parallax */}
-        <div ref={bgRef} className="absolute inset-0 -top-20 -bottom-20">
-          <img
-            src={CTA_BG}
-            alt=""
-            className="w-full h-full object-cover opacity-60"
-          />
-          <div className="absolute inset-0" style={{
-            background: 'linear-gradient(135deg, oklch(1 0 0 / 0.4) 0%, oklch(1 0 0 / 0.6) 100%)',
-          }} />
-        </div>
+      <section id="contato" className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, oklch(1 0 0) 0%, oklch(0.98 0 0) 100%)' }}>
+        {/* Glassmorphism background */}
+        <div className="absolute inset-0 opacity-30" style={{
+          background: 'radial-gradient(circle at 20% 50%, oklch(0.72 0.12 75 / 0.1) 0%, transparent 50%)',
+        }} />
+        <div className="absolute inset-0 opacity-20" style={{
+          background: 'radial-gradient(circle at 80% 80%, oklch(0.72 0.12 75 / 0.08) 0%, transparent 50%)',
+        }} />
 
         {/* Content */}
         <div className="relative z-10 container text-center py-20">
@@ -47,25 +45,25 @@ export default function ContactSection() {
               backgroundColor: 'oklch(0.72 0.12 75 / 0.4)',
             }} />
             <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.72 0.12 75)' }}>
-              Contato
+              {t('contact.label')}
             </span>
           </div>
 
           {/* Main heading */}
           <h2 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[1.1] mb-6 md:mb-8 gsap-fade-up max-w-4xl mx-auto"
             style={{ color: 'oklch(0.15 0 0)', fontWeight: 700 }}>
-            Pronto para <span style={{ color: 'oklch(0.72 0.12 75)' }}>transformar sua marca?</span>
+            {t('contact.title')} <span style={{ color: 'oklch(0.72 0.12 75)' }}>{t('contact.titleHighlight')}</span>
           </h2>
 
           {/* Subtitle */}
           <p className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-12 md:mb-16 gsap-fade-up"
             style={{ color: 'oklch(0.25 0 0)' }}>
-            Estou sempre aberto a novos desafios e colaborações. Vamos conversar sobre seu projeto.
+            {t('contact.description')}
           </p>
 
           {/* CTA Button */}
           <a
-            href="mailto:lucas@donin.com.br"
+            href="mailto:hello@donindesign.com"
             className="inline-flex items-center gap-3 px-10 md:px-12 py-5 md:py-6 rounded-sm transition-all duration-300 hover:scale-105 group gsap-scale"
             style={{
               backgroundColor: 'oklch(0.72 0.12 75)',
@@ -75,14 +73,14 @@ export default function ContactSection() {
               letterSpacing: '0.05em',
             }}
           >
-            Enviar Email
+            {t('contact.email')}
             <span className="transition-transform duration-300 group-hover:translate-x-2">→</span>
           </a>
 
           {/* Social links */}
           <div className="mt-20 md:mt-32 flex flex-col items-center gap-8">
             <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'oklch(0.25 0 0)' }}>
-              Ou me encontre em
+              {t('contact.social')}
             </span>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10 gsap-stagger-parent">
               {socialLinks.map((link) => (

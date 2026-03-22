@@ -1,3 +1,5 @@
+import { useLanguage } from '@/contexts/LanguageContext';
+
 /*
  * Design: Dark Atelier — Galeria Noturna
  * Processo: Timeline vertical com 4 etapas, ícones, descrições
@@ -32,6 +34,7 @@ const processSteps = [
 ];
 
 export default function ProcessSection() {
+  const { t } = useLanguage();
   return (
     <section id="processo" className="relative py-24 md:py-40 overflow-hidden">
       <div className="container">
@@ -46,14 +49,14 @@ export default function ProcessSection() {
             backgroundColor: 'oklch(0.72 0.12 75 / 0.4)',
           }} />
           <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.72 0.12 75)' }}>
-            Meu Processo
+            {t('process.label')}
           </span>
         </div>
 
         {/* Section title */}
         <h2 className="font-display text-3xl md:text-5xl lg:text-6xl leading-[1.1] mb-16 md:mb-24 gsap-fade-up max-w-3xl"
           style={{ color: 'oklch(0 0 0)', fontWeight: 700 }}>
-          Metodologia que <span style={{ color: 'oklch(0.72 0.12 75)' }}>transforma visão em realidade</span>
+          {t('process.title')} <span style={{ color: 'oklch(0.72 0.12 75)' }}>{t('process.subtitle')}</span>
         </h2>
 
         {/* Process timeline */}
@@ -98,13 +101,13 @@ export default function ProcessSection() {
                   {/* Title */}
                   <h3 className="font-display text-2xl md:text-3xl mb-4 transition-colors duration-300 group-hover:text-gold"
                     style={{ color: 'oklch(0 0 0)', fontWeight: 700 }}>
-                    {step.title}
+                    {t(`process.${['discovery', 'strategy', 'execution', 'delivery'][parseInt(step.number) - 1]}`)}
                   </h3>
 
                   {/* Description */}
                   <p className="text-sm md:text-base leading-relaxed mb-6"
                     style={{ color: 'oklch(0.35 0 0)' }}>
-                    {step.description}
+                    {t(`process.${['discovery', 'strategy', 'execution', 'delivery'][parseInt(step.number) - 1]}Desc`)}
                   </p>
 
                   {/* Details */}
@@ -128,8 +131,7 @@ export default function ProcessSection() {
         <div className="mt-20 md:mt-32 text-center gsap-fade-up">
           <p className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto"
             style={{ color: 'oklch(0.35 0 0)' }}>
-            Cada projeto é único e merece uma abordagem personalizada. Trabalho em colaboração
-            estreita com clientes para garantir que a visão final supere as expectativas.
+            {/* Adicionar tradução para parágrafo de conclusão quando necessário */}
           </p>
         </div>
       </div>
