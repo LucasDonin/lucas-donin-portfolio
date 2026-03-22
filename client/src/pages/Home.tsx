@@ -9,6 +9,7 @@ import ContactSection from '@/components/ContactSection';
 import { useLenis } from '@/hooks/useLenis';
 import { useScrollAnimations } from '@/hooks/useScrollAnimations';
 
+/* Orbs subtis para o fundo escuro */
 function BackgroundOrbs() {
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -21,13 +22,13 @@ function BackgroundOrbs() {
       <div style={{
         position: 'absolute', top: '40%', right: '-8%',
         width: '400px', height: '400px', borderRadius: '50%',
-        background: 'radial-gradient(circle, oklch(0.78 0.14 88 / 0.07) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, oklch(0.68 0.12 88 / 0.08) 0%, transparent 70%)',
         filter: 'blur(70px)',
       }} />
       <div style={{
         position: 'absolute', bottom: '10%', left: '15%',
         width: '350px', height: '350px', borderRadius: '50%',
-        background: 'radial-gradient(circle, oklch(0.78 0.14 88 / 0.06) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, oklch(0.78 0.14 88 / 0.07) 0%, transparent 70%)',
         filter: 'blur(80px)',
       }} />
     </div>
