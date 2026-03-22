@@ -35,7 +35,7 @@ function SplitHeading({ text, highlight, className, style }: {
   return (
     <h2 ref={ref} className={className} style={style}>
       {renderChars(text)}
-      {highlight && <>{' '}<span>{renderChars(highlight, 'oklch(0.78 0.14 88)')}</span></>}
+      {highlight && <><br /><span>{renderChars(highlight, 'oklch(0.78 0.14 88)')}</span></>}
     </h2>
   );
 }
