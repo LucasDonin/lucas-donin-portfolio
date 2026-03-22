@@ -45,14 +45,14 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
   return (
     <div
       className="preloader fixed inset-0 z-[100] flex flex-col items-center justify-center"
-      style={{ backgroundColor: ''#242424'' }}
+      style={{ backgroundColor: '#242424' }}
     >
       <div className="preloader-name flex overflow-hidden mb-4">
         {nameChars.map((char, i) => (
           <span
             key={i}
             className="font-display text-4xl md:text-6xl tracking-tight inline-block opacity-0"
-            style={{ color: ''#D2D2D2'', transform: 'translateY(40px)' }}
+            style={{ color: '#D2D2D2', transform: 'translateY(40px)' }}
           >
             {char === ' ' ? '\u00A0' : char}
           </span>
@@ -71,7 +71,7 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
             style={{ width: `${progress}%`, backgroundColor: 'oklch(0.78 0.14 88)' }}
           />
         </div>
-        <span className="text-xs tabular-nums font-body" style={{ color: ''#999'' }}>
+        <span className="text-xs tabular-nums font-body" style={{ color: '#999' }}>
           {progress}%
         </span>
       </div>
