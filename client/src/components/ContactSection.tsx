@@ -32,9 +32,9 @@ function SplitHeading({ before, highlight, className }: { before: string; highli
     ));
 
   return (
-    <h2 ref={ref} className={className} style={{ color: 'oklch(0.92 0.01 80)', fontWeight: 700 }}>
+    <h2 ref={ref} className={className} style={{ color: ''#D2D2D2'', fontWeight: 700 }}>
       {renderChars(before + ' ')}
-      <span>{renderChars(highlight, 'oklch(0.70 0.09 140)')}</span>
+      <span>{renderChars(highlight, 'oklch(0.78 0.14 88)')}</span>
     </h2>
   );
 }
@@ -47,7 +47,7 @@ export default function ContactSection() {
       <section
         id="contato"
         className="relative min-h-screen flex items-center justify-center overflow-hidden"
-        style={{ backgroundColor: 'oklch(0.09 0.004 80)' }}
+        style={{ backgroundColor: ''#242424'' }}
       >
         {/* Subtle glow bg */}
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -56,9 +56,9 @@ export default function ContactSection() {
 
         <div className="relative z-10 container text-center py-20">
           <div className="flex items-center justify-center gap-4 mb-12 md:mb-16 gsap-fade-up">
-            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.70 0.09 140)' }}>04</span>
+            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.78 0.14 88)' }}>04</span>
             <div className="gsap-line-expand" style={{ width: '60px', height: '1px', backgroundColor: 'oklch(0.70 0.09 140 / 0.4)' }} />
-            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.70 0.09 140)' }}>{t('contact.label')}</span>
+            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.78 0.14 88)' }}>{t('contact.label')}</span>
           </div>
 
           <SplitHeading
@@ -81,7 +81,7 @@ export default function ContactSection() {
               WebkitBackdropFilter: 'blur(14px)',
               border: '1px solid oklch(0.70 0.09 140 / 0.45)',
               boxShadow: '0 6px 32px oklch(0.70 0.09 140 / 0.18), inset 0 1px 0 rgba(255,255,255,0.08)',
-              color: 'oklch(0.70 0.09 140)',
+              color: 'oklch(0.78 0.14 88)',
               fontSize: '16px',
               fontWeight: 600,
               letterSpacing: '0.05em',
@@ -92,7 +92,7 @@ export default function ContactSection() {
           </a>
 
           <div className="mt-20 md:mt-32 flex flex-col items-center gap-8">
-            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'oklch(0.45 0.005 80)' }}>
+            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: ''#777'' }}>
               {t('contact.social')}
             </span>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10 gsap-stagger-parent">
@@ -103,16 +103,16 @@ export default function ContactSection() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gsap-stagger-child group relative text-sm md:text-base transition-all duration-300"
-                  style={{ color: 'oklch(0.62 0.005 80)' }}
+                  style={{ color: ''#999'' }}
                 >
                   <span className="relative inline-flex items-center gap-2">
                     {link.label}
-                    <span className="transition-transform duration-300 group-hover:translate-x-1" style={{ color: 'oklch(0.70 0.09 140)' }}>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1" style={{ color: 'oklch(0.78 0.14 88)' }}>
                       {link.icon}
                     </span>
                   </span>
                   <span className="absolute -bottom-1 left-0 h-[1px] transition-all duration-300 group-hover:w-full"
-                    style={{ width: '0%', backgroundColor: 'oklch(0.70 0.09 140)' }} />
+                    style={{ width: '0%', backgroundColor: 'oklch(0.78 0.14 88)' }} />
                 </a>
               ))}
             </div>
