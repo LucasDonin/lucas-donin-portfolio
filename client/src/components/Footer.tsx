@@ -16,9 +16,9 @@ export default function Footer() {
       <div className="container">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
-            {/* Logo DNN ao invés de texto */}
-            <img src="/logo-dnn.webp" alt="DNN" className="h-10 w-auto mb-2" style={{ opacity: 0.85 }} />
-            <p className="text-sm" style={{ color: '#777' }}>{t('footer.brand')}</p>
+            {/* Logo DNN — clara/amarelada */}
+            <img src="/logo-dnn.webp" alt="DNN" className="h-10 w-auto"
+              style={{ filter: 'brightness(10) sepia(1) saturate(3) hue-rotate(5deg)', opacity: 0.90 }} />
           </div>
 
           <div>
@@ -60,7 +60,8 @@ export default function Footer() {
           style={{ borderColor: 'rgba(210,210,210,0.08)', color: '#555' }}>
           <span>© {currentYear} Donindesign. {t('footer.copyright')}</span>
           {/* Logo DNN no rodapé */}
-          <img src="/logo-dnn.webp" alt="DNN" className="h-7 w-auto mt-4 md:mt-0" style={{ opacity: 0.4 }} />
+          <img src="/logo-dnn.webp" alt="DNN" className="h-7 w-auto mt-4 md:mt-0"
+            style={{ filter: 'brightness(10) sepia(1) saturate(2) hue-rotate(5deg)', opacity: 0.55 }} />
         </div>
       </div>
     </footer>
