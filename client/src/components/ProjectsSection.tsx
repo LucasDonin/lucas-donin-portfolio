@@ -61,7 +61,7 @@ export default function ProjectsSection() {
       <div className="container">
         <div className="flex items-center gap-4 mb-16 md:mb-24 gsap-fade-up">
           <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.78 0.14 88)' }}>02</span>
-          <div className="gsap-line-expand" style={{ width: '60px', height: '1px', backgroundColor: 'oklch(0.70 0.09 140 / 0.4)' }} />
+          <div className="gsap-line-expand" style={{ width: '60px', height: '1px', backgroundColor: 'oklch(0.78 0.14 88 / 0.4)' }} />
           <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.78 0.14 88)' }}>{t('projects.title')}</span>
         </div>
 
@@ -85,7 +85,7 @@ export default function ProjectsSection() {
                   WebkitBackdropFilter: 'blur(16px)',
                   border: hoveredId === project.id ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.08)',
                   boxShadow: hoveredId === project.id
-                    ? '0 8px 40px oklch(0.70 0.09 140 / 0.15), 0 2px 8px rgba(0,0,0,0.3)'
+                    ? '0 8px 40px oklch(0.78 0.14 88 / 0.15), 0 2px 8px rgba(0,0,0,0.3)'
                     : '0 4px 24px rgba(0,0,0,0.2)',
                   transform: hoveredId === project.id ? 'translateY(-4px)' : 'translateY(0)',
                 }}
@@ -101,7 +101,7 @@ export default function ProjectsSection() {
                     className="absolute inset-0 transition-all duration-500"
                     style={{
                       background: hoveredId === project.id
-                        ? 'linear-gradient(135deg, oklch(0.70 0.09 140 / 0.15) 0%, transparent 60%)'
+                        ? 'linear-gradient(135deg, oklch(0.78 0.14 88 / 0.15) 0%, transparent 60%)'
                         : 'linear-gradient(to bottom, transparent 50%, oklch(0.09 0.004 80 / 0.4) 100%)',
                     }}
                   />
@@ -164,8 +164,8 @@ export default function ProjectsSection() {
               background: 'rgba(255,255,255,0.06)',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid oklch(0.70 0.09 140 / 0.40)',
-              boxShadow: '0 4px 24px oklch(0.70 0.09 140 / 0.15)',
+              border: '1px solid oklch(0.78 0.14 88 / 0.40)',
+              boxShadow: '0 4px 24px oklch(0.78 0.14 88 / 0.15)',
               color: 'oklch(0.78 0.14 88)',
               fontWeight: 600,
             }}
