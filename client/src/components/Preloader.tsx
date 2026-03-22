@@ -16,7 +16,6 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
       },
     });
 
-    // Animate progress counter
     const counter = { val: 0 };
     tl.to(counter, {
       val: 100,
@@ -26,8 +25,7 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
     });
 
     tl.to('.preloader-name span', {
-      opacity: 1,
-      y: 0,
+      opacity: 1, y: 0,
       stagger: 0.05,
       duration: 0.5,
       ease: 'power3.out',
@@ -45,34 +43,35 @@ export default function Preloader({ onComplete }: { onComplete: () => void }) {
   const nameChars = 'Lucas Donin'.split('');
 
   return (
-    <div className="preloader fixed inset-0 z-[100] flex flex-col items-center justify-center"
-      style={{ backgroundColor: 'oklch(1 0 0)' }}>
+    <div
+      className="preloader fixed inset-0 z-[100] flex flex-col items-center justify-center"
+      style={{ backgroundColor: 'oklch(0.09 0.004 80)' }}
+    >
       <div className="preloader-name flex overflow-hidden mb-4">
         {nameChars.map((char, i) => (
           <span
             key={i}
             className="font-display text-4xl md:text-6xl tracking-tight inline-block opacity-0"
-            style={{ color: 'oklch(0.15 0 0)', transform: 'translateY(40px)' }}
+            style={{ color: 'oklch(0.92 0.01 80)', transform: 'translateY(40px)' }}
           >
             {char === ' ' ? '\u00A0' : char}
           </span>
         ))}
       </div>
-      <p className="preloader-title text-sm tracking-[0.3em] uppercase opacity-0"
-        style={{ color: 'oklch(0.72 0.12 75)' }}>
+      <p
+        className="preloader-title text-sm tracking-[0.3em] uppercase opacity-0"
+        style={{ color: 'oklch(0.70 0.09 140)' }}
+      >
         Diretor de Arte
       </p>
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4">
-        <div className="w-48 h-[1px] bg-black/10 overflow-hidden">
+        <div className="w-48 h-[1px] overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 80 / 0.1)' }}>
           <div
             className="h-full transition-all duration-100 ease-linear"
-            style={{
-              width: `${progress}%`,
-              backgroundColor: 'oklch(0.72 0.12 75)',
-            }}
+            style={{ width: `${progress}%`, backgroundColor: 'oklch(0.70 0.09 140)' }}
           />
         </div>
-        <span className="text-xs tabular-nums text-cream-dim font-body" style={{ color: 'oklch(0.35 0 0)' }}>
+        <span className="text-xs tabular-nums font-body" style={{ color: 'oklch(0.62 0.005 80)' }}>
           {progress}%
         </span>
       </div>
