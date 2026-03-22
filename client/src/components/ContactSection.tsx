@@ -7,9 +7,9 @@ import Footer from './Footer';
 gsap.registerPlugin(ScrollTrigger);
 
 const socialLinks = [
-  { label: 'Behance', url: 'https://www.behance.net/LucasDoninn', icon: '→' },
-  { label: 'Instagram', url: 'https://instagram.com/lucasdonin', icon: '→' },
-  { label: 'LinkedIn', url: 'https://linkedin.com/in/lucasdonin', icon: '→' },
+  { label: 'Behance', url: 'https://www.behance.net/LucasDoninn' },
+  { label: 'Instagram', url: 'https://instagram.com/lucasdonin' },
+  { label: 'LinkedIn', url: 'https://linkedin.com/in/lucasdonin' },
 ];
 
 function SplitHeading({ before, highlight, className }: { before: string; highlight: string; className?: string }) {
@@ -71,7 +71,7 @@ export default function ContactSection() {
             {t('contact.description')}
           </p>
 
-          
+          <a
             href="mailto:hello@donindesign.com"
             className="inline-flex items-center gap-3 px-10 md:px-12 py-5 md:py-6 rounded-xl transition-all duration-300 hover:scale-105 group gsap-scale"
             style={{
@@ -87,8 +87,40 @@ export default function ContactSection() {
             }}
           >
             {t('contact.email')}
-            <span className="transition-transform duration-300 group-hover:translate-x-2">→</span>
+            <span className="transition-transform duration-300 group-hover:translate-x-2">{'\u2192'}</span>
           </a>
 
           <div className="mt-20 md:mt-32 flex flex-col items-center gap-8">
             <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: '#555' }}>
+              {t('contact.social')}
+            </span>
+            <div className="flex flex-wrap justify-center gap-6 md:gap-10 gsap-stagger-parent">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gsap-stagger-child group relative text-sm md:text-base transition-all duration-300"
+                  style={{ color: '#999' }}
+                >
+                  <span className="relative inline-flex items-center gap-2">
+                    {link.label}
+                    <span className="transition-transform duration-300 group-hover:translate-x-1" style={{ color: 'oklch(0.78 0.14 88)' }}>
+                      {'\u2192'}
+                    </span>
+                  </span>
+                  <span
+                    className="absolute -bottom-1 left-0 h-[1px] transition-all duration-300 group-hover:w-full"
+                    style={{ width: '0%', backgroundColor: 'oklch(0.78 0.14 88)' }}
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      <Footer />
+    </>
+  );
+}
