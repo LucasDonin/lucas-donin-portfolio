@@ -1,15 +1,5 @@
-/*
- * Design: Dark Atelier — Galeria Noturna
- * Contato: Full-width section com background atmosférico, CTA grande, links sociais
- * Animações: Fade-up, scale, parallax background
- */
-
-import { useRef } from 'react';
-import { gsap } from 'gsap';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Footer from './Footer';
-
-const CTA_BG = '/wallpaper-glass.jpg';
 
 const socialLinks = [
   { label: 'Behance', url: 'https://www.behance.net/LucasDoninn', icon: '→' },
@@ -18,13 +8,16 @@ const socialLinks = [
 ];
 
 export default function ContactSection() {
-  const bgRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
 
   return (
     <>
-      <section id="contato" className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, oklch(1 0 0) 0%, oklch(0.98 0 0) 100%)' }}>
-        {/* Glassmorphism background */}
+      <section
+        id="contato"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, oklch(1 0 0) 0%, oklch(0.98 0 0) 100%)' }}
+      >
+        {/* Glassmorphism bg tints */}
         <div className="absolute inset-0 opacity-30" style={{
           background: 'radial-gradient(circle at 20% 50%, oklch(0.72 0.12 75 / 0.1) 0%, transparent 50%)',
         }} />
@@ -32,42 +25,42 @@ export default function ContactSection() {
           background: 'radial-gradient(circle at 80% 80%, oklch(0.72 0.12 75 / 0.08) 0%, transparent 50%)',
         }} />
 
-        {/* Content */}
         <div className="relative z-10 container text-center py-20">
           {/* Section label */}
           <div className="flex items-center justify-center gap-4 mb-12 md:mb-16 gsap-fade-up">
-            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.72 0.12 75)' }}>
-              04
-            </span>
-            <div className="gsap-line-expand" style={{
-              width: '60px',
-              height: '1px',
-              backgroundColor: 'oklch(0.72 0.12 75 / 0.4)',
-            }} />
+            <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.72 0.12 75)' }}>04</span>
+            <div className="gsap-line-expand" style={{ width: '60px', height: '1px', backgroundColor: 'oklch(0.72 0.12 75 / 0.4)' }} />
             <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.72 0.12 75)' }}>
               {t('contact.label')}
             </span>
           </div>
 
-          {/* Main heading */}
-          <h2 className="font-display text-4xl md:text-6xl lg:text-7xl leading-[1.1] mb-6 md:mb-8 gsap-fade-up max-w-4xl mx-auto"
-            style={{ color: 'oklch(0.15 0 0)', fontWeight: 700 }}>
-            {t('contact.title')} <span style={{ color: 'oklch(0.72 0.12 75)' }}>{t('contact.titleHighlight')}</span>
+          <h2
+            className="font-display text-4xl md:text-6xl lg:text-7xl leading-[1.1] mb-6 md:mb-8 gsap-fade-up max-w-4xl mx-auto"
+            style={{ color: 'oklch(0.15 0 0)', fontWeight: 700 }}
+          >
+            {t('contact.title')}{' '}
+            <span style={{ color: 'oklch(0.72 0.12 75)' }}>{t('contact.titleHighlight')}</span>
           </h2>
 
-          {/* Subtitle */}
-          <p className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-12 md:mb-16 gsap-fade-up"
-            style={{ color: 'oklch(0.25 0 0)' }}>
+          <p
+            className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-12 md:mb-16 gsap-fade-up"
+            style={{ color: 'oklch(0.25 0 0)' }}
+          >
             {t('contact.description')}
           </p>
 
-          {/* CTA Button */}
+          {/* CTA Button — glass dourado */}
           <a
             href="mailto:hello@donindesign.com"
-            className="inline-flex items-center gap-3 px-10 md:px-12 py-5 md:py-6 rounded-sm transition-all duration-300 hover:scale-105 group gsap-scale"
+            className="inline-flex items-center gap-3 px-10 md:px-12 py-5 md:py-6 rounded-xl transition-all duration-300 hover:scale-105 group gsap-scale"
             style={{
-              backgroundColor: 'oklch(0.72 0.12 75)',
-              color: 'oklch(0 0 0)',
+              background: 'linear-gradient(135deg, oklch(0.78 0.12 75 / 0.88), oklch(0.65 0.12 70 / 0.92))',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              border: '1px solid oklch(0.85 0.10 75 / 0.55)',
+              boxShadow: '0 6px 32px oklch(0.72 0.12 75 / 0.35), inset 0 1px 0 rgba(255,255,255,0.35)',
+              color: 'oklch(0.08 0 0)',
               fontSize: '16px',
               fontWeight: 600,
               letterSpacing: '0.05em',
@@ -100,10 +93,7 @@ export default function ContactSection() {
                   </span>
                   <span
                     className="absolute -bottom-1 left-0 h-[1px] transition-all duration-300 group-hover:w-full"
-                    style={{
-                      width: '0%',
-                      backgroundColor: 'oklch(0.72 0.12 75)',
-                    }}
+                    style={{ width: '0%', backgroundColor: 'oklch(0.72 0.12 75)' }}
                   />
                 </a>
               ))}
