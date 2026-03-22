@@ -32,7 +32,7 @@ function SplitHeading({ before, highlight, className }: { before: string; highli
     ));
 
   return (
-    <h2 ref={ref} className={className} style={{ color: ''#D2D2D2'', fontWeight: 700 }}>
+    <h2 ref={ref} className={className} style={{ color: '#D2D2D2', fontWeight: 700 }}>
       {renderChars(before + ' ')}
       <span>{renderChars(highlight, 'oklch(0.78 0.14 88)')}</span>
     </h2>
@@ -47,7 +47,7 @@ export default function ContactSection() {
       <section
         id="contato"
         className="relative min-h-screen flex items-center justify-center overflow-hidden"
-        style={{ backgroundColor: ''#242424'' }}
+        style={{ backgroundColor: '#242424' }}
       >
         {/* Subtle glow bg */}
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -92,7 +92,7 @@ export default function ContactSection() {
           </a>
 
           <div className="mt-20 md:mt-32 flex flex-col items-center gap-8">
-            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: ''#777'' }}>
+            <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: '#777' }}>
               {t('contact.social')}
             </span>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10 gsap-stagger-parent">
@@ -103,7 +103,7 @@ export default function ContactSection() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gsap-stagger-child group relative text-sm md:text-base transition-all duration-300"
-                  style={{ color: ''#999'' }}
+                  style={{ color: '#999' }}
                 >
                   <span className="relative inline-flex items-center gap-2">
                     {link.label}
