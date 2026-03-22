@@ -57,7 +57,7 @@ export default function ProjectsSection() {
   const { t } = useLanguage();
 
   return (
-    <section id="projetos" className="relative py-24 md:py-40 overflow-hidden" style={{ backgroundColor: ''#242424'' }}>
+    <section id="projetos" className="relative py-24 md:py-40 overflow-hidden" style={{ backgroundColor: '#242424' }}>
       <div className="container">
         <div className="flex items-center gap-4 mb-16 md:mb-24 gsap-fade-up">
           <span className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'oklch(0.78 0.14 88)' }}>02</span>
@@ -112,7 +112,7 @@ export default function ProjectsSection() {
                         background: 'rgba(0,0,0,0.5)',
                         backdropFilter: 'blur(10px)',
                         border: '1px solid rgba(255,255,255,0.15)',
-                        color: ''#D2D2D2'',
+                        color: '#D2D2D2',
                       }}
                     >
                       {t('projects.viewProject')}
@@ -124,10 +124,10 @@ export default function ProjectsSection() {
                   <span className="text-[10px] tracking-[0.3em] uppercase block mb-2" style={{ color: 'oklch(0.78 0.14 88)' }}>
                     {project.category}
                   </span>
-                  <h3 className="font-display text-2xl md:text-3xl mb-3" style={{ color: ''#D2D2D2'', fontWeight: 700 }}>
+                  <h3 className="font-display text-2xl md:text-3xl mb-3" style={{ color: '#D2D2D2', fontWeight: 700 }}>
                     {t(project.titleKey)}
                   </h3>
-                  <p className="text-sm md:text-base leading-relaxed mb-4" style={{ color: ''#999'' }}>
+                  <p className="text-sm md:text-base leading-relaxed mb-4" style={{ color: '#999' }}>
                     {t(project.descKey)}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -138,7 +138,7 @@ export default function ProjectsSection() {
                         style={{
                           background: 'rgba(255,255,255,0.05)',
                           border: '1px solid rgba(255,255,255,0.10)',
-                          color: ''#999'',
+                          color: '#999',
                         }}
                       >
                         {tag}
@@ -152,7 +152,7 @@ export default function ProjectsSection() {
         </div>
 
         <div className="mt-20 md:mt-32 text-center gsap-fade-up">
-          <p className="text-sm md:text-base mb-6" style={{ color: ''#777'' }}>
+          <p className="text-sm md:text-base mb-6" style={{ color: '#777' }}>
             {t('projects.explore')}
           </p>
           <a
