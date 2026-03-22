@@ -16,25 +16,18 @@ export default function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 80);
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     const sections = document.querySelectorAll('section[id]');
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
+      (entries) => entries.forEach((entry) => {
+        if (entry.isIntersecting) setActiveSection(entry.target.id);
+      }),
       { rootMargin: '-40% 0px -40% 0px' }
     );
     sections.forEach((s) => observer.observe(s));
 
-    // Animate nav in — no delay since preloader already handled timing
     gsap.fromTo('.nav-bar',
       { y: -100, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', delay: 0.1 }
@@ -48,24 +41,28 @@ export default function Navigation() {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
     setMenuOpen(false);
   };
 
   return (
     <>
       <nav
-        className={`nav-bar fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled ? 'py-3 backdrop-blur-xl' : 'py-5'
-        }`}
+        className="nav-bar fixed top-0 left-0 right-0 z-50 transition-all duration-500"
         style={{
-          backgroundColor: scrolled ? 'oklch(1 0 0 / 0.95)' : 'transparent',
+          padding: scrolled ? '12px 0' : '20px 0',
+          /* Glass quando scrollado, transparente no topo */
+          background: scrolled
+            ? 'rgba(255, 255, 255, 0.55)'
+            : 'transparent',
+          backdropFilter: scrolled ? 'blur(20px)' : 'none',
+          WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
           borderBottom: scrolled
-            ? '1px solid oklch(0.15 0 0 / 0.15)'
+            ? '1px solid rgba(255, 255, 255, 0.4)'
             : '1px solid transparent',
+          boxShadow: scrolled
+            ? '0 4px 30px rgba(0, 0, 0, 0.06)'
+            : 'none',
         }}
       >
         <div className="container flex items-center justify-between">
@@ -84,7 +81,7 @@ export default function Navigation() {
                 style={{
                   color: activeSection === item.href.slice(1)
                     ? 'oklch(0.72 0.12 75)'
-                    : 'oklch(0.35 0 0)',
+                    : 'oklch(0.25 0 0)',
                   fontFamily: 'var(--font-body)',
                 }}
               >
@@ -98,26 +95,38 @@ export default function Navigation() {
                 />
               </a>
             ))}
+
+            {/* Botão Behance — glass */}
             <a
               href="https://www.behance.net/LucasDoninn"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm px-5 py-2 rounded-sm transition-all duration-300 hover:scale-105"
+              className="text-sm px-5 py-2 rounded-lg transition-all duration-300 hover:scale-105"
               style={{
-                backgroundColor: 'oklch(0.72 0.12 75)',
+                background: 'rgba(255,255,255,0.45)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.6)',
+                boxShadow: '0 2px 16px oklch(0.72 0.12 75 / 0.15)',
                 color: 'oklch(0.15 0 0)',
                 fontFamily: 'var(--font-body)',
-                fontWeight: 500,
+                fontWeight: 600,
               }}
             >
               {t('nav.behance')}
             </a>
+
+            {/* Botão PT/EN — glass */}
             <button
               onClick={toggleLanguage}
-              className="p-2 rounded-sm transition-all duration-300 hover:scale-110 text-xs font-bold"
+              className="px-3 py-2 rounded-lg transition-all duration-300 hover:scale-110 text-xs font-bold"
               style={{
-                backgroundColor: 'oklch(0.72 0.12 75)',
-                color: 'oklch(0.15 0 0)',
+                background: 'rgba(255,255,255,0.45)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.6)',
+                boxShadow: '0 2px 12px oklch(0.72 0.12 75 / 0.12)',
+                color: 'oklch(0.55 0.12 75)',
               }}
               aria-label="Toggle language"
             >
@@ -131,37 +140,35 @@ export default function Navigation() {
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menu"
           >
-            <span
-              className="block w-6 h-[1.5px] transition-all duration-300"
-              style={{
-                backgroundColor: 'oklch(0.15 0 0)',
-                transform: menuOpen ? 'rotate(45deg) translateY(6px)' : 'none',
-              }}
-            />
-            <span
-              className="block w-6 h-[1.5px] transition-all duration-300"
-              style={{
-                backgroundColor: 'oklch(0.15 0 0)',
-                opacity: menuOpen ? 0 : 1,
-              }}
-            />
-            <span
-              className="block w-6 h-[1.5px] transition-all duration-300"
-              style={{
-                backgroundColor: 'oklch(0.15 0 0)',
-                transform: menuOpen ? 'rotate(-45deg) translateY(-6px)' : 'none',
-              }}
-            />
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="block w-6 h-[1.5px] transition-all duration-300"
+                style={{
+                  backgroundColor: 'oklch(0.15 0 0)',
+                  opacity: i === 1 && menuOpen ? 0 : 1,
+                  transform: i === 0 && menuOpen
+                    ? 'rotate(45deg) translateY(6px)'
+                    : i === 2 && menuOpen
+                    ? 'rotate(-45deg) translateY(-6px)'
+                    : 'none',
+                }}
+              />
+            ))}
           </button>
         </div>
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — glass */}
       <div
         className={`fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 transition-all duration-500 md:hidden ${
           menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ backgroundColor: 'oklch(1 0 0 / 0.97)' }}
+        style={{
+          background: 'rgba(255, 255, 255, 0.80)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        }}
       >
         {navItems.map((item, i) => (
           <a
@@ -183,11 +190,13 @@ export default function Navigation() {
           href="https://www.behance.net/LucasDoninn"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm px-6 py-3 rounded-sm mt-4"
+          className="text-sm px-6 py-3 rounded-lg mt-4"
           style={{
-            backgroundColor: 'oklch(0.72 0.12 75)',
+            background: 'rgba(255,255,255,0.5)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.7)',
             color: 'oklch(0.15 0 0)',
-            fontWeight: 500,
+            fontWeight: 600,
           }}
         >
           {t('nav.behance')}
