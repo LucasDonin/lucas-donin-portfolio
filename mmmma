@@ -1,0 +1,1867 @@
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+
+session_start();
+
+// Login / logout
+if (isset($_POST['logout'])) {
+    session_destroy();
+    header('Location: admin.php');
+    exit;
+}
+
+if (isset($_POST['password'])) {
+    if ($_POST['password'] === ADMIN_PASSWORD) {
+        $_SESSION['admin'] = true;
+    } else {
+        $loginError = 'Senha incorreta.';
+    }
+}
+
+$loggedIn = !empty($_SESSION['admin']);
+
+// Ações do painel
+if ($loggedIn) {
+    $pdo = getDB();
+
+    // Confirmar pedido
+    if (isset($_POST['confirm_order'])) {
+        $id = (int)$_POST['confirm_order'];
+        $pdo->prepare("UPDATE orders SET status='confirmed', confirmed_at=CURRENT_TIMESTAMP WHERE id=?")->execute([$id]);
+    }
+
+    // Cancelar pedido (devolve ao estoque)
+    if (isset($_POST['cancel_order'])) {
+        $id = (int)$_POST['cancel_order'];
+        $stmt = $pdo->prepare("SELECT status FROM orders WHERE id=?");
+        $stmt->execute([$id]);
+        $order = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($order && $order['status'] !== 'cancelled') {
+            $pdo->prepare("UPDATE orders SET status='cancelled' WHERE id=?")->execute([$id]);
+            incrementStock();
+        }
+    }
+
+    // Editar estoque manualmente
+    if (isset($_POST['set_stock'])) {
+        $newStock = max(0, min(STOCK_TOTAL, (int)$_POST['set_stock']));
+        $pdo->exec("UPDATE stock SET available = $newStock WHERE id = 1");
+    }
+
+    // Adicionar nota a um pedido
+    if (isset($_POST['save_note'])) {
+        $id = (int)$_POST['note_order_id'];
+        $note = trim($_POST['note'] ?? '');
+        $pdo->prepare("UPDATE orders SET notes=? WHERE id=?")->execute([$note, $id]);
+    }
+
+    // Buscar dados
+    $stock = getStock();
+    $filter = $_GET['filter'] ?? 'all';
+    $search = trim($_GET['q'] ?? '');
+
+    $where = '';
+    $params = [];
+
+    if ($filter === 'confirmed') { $where = "WHERE status='confirmed'"; }
+    elseif ($filter === 'pending') { $where = "WHERE status='pending'"; }
+    elseif ($filter === 'cancelled') { $where = "WHERE status='cancelled'"; }
+
+    if ($search) {
+        $like = "%$search%";
+        $searchClause = "name LIKE ? OR email LIKE ? OR phone LIKE ?";
+        $where = $where ? "$where AND ($searchClause)" : "WHERE $searchClause";
+        $params = array_merge($params, [$like, $like, $like]);
+    }
+
+    $orders = $pdo->prepare("SELECT * FROM orders $where ORDER BY created_at DESC");
+    $orders->execute($params);
+    $orders = $orders->fetchAll(PDO::FETCH_ASSOC);
+
+    // Totais
+    $totals = $pdo->query("SELECT status, COUNT(*) as cnt FROM orders GROUP BY status")->fetchAll(PDO::FETCH_ASSOC);
+    $totalMap = array_column($totals, 'cnt', 'status');
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · <?= SITE_TITLE ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --yellow: #FFD000;
+            --black: #0A0A0A;
+            --black-light: #111111;
+            --black-mid: #1A1A1A;
+            --white: #F5F5F0;
+            --gray: #888880;
+            --gray-light: #333330;
+            --green: #00C851;
+            --red: #FF4444;
+            --orange: #FF8800;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--black); color: var(--white); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+        /* ── Login ── */
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-box { width: 100%; max-width: 380px; }
+        .login-title { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--white); margin-bottom: 4px; }
+        .login-sub { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--gray); margin-bottom: 32px; text-transform: uppercase; }
+        .login-error { background: rgba(255,68,68,0.1); border: 1px solid var(--red); padding: 12px 16px; font-size: 14px; color: var(--red); margin-bottom: 20px; }
+        .login-input { width: 100%; background: var(--black-mid); border: 1px solid var(--gray-light); color: var(--white); padding: 16px; font-family: 'Barlow', sans-serif; font-size: 16px; outline: none; }
+        .login-input:focus { border-color: var(--yellow); }
+        .login-btn { width: 100%; margin-top: 12px; padding: 16px; background: var(--yellow); color: var(--black); border: none; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; cursor: pointer; }
+
+        /* ── Admin panel ── */
+        .admin-header {
+            background: var(--black-light);
+            border-bottom: 2px solid var(--yellow);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .admin-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; color: var(--yellow); }
+        .admin-title span { color: var(--gray); font-size: 16px; }
+        .btn-logout { padding: 8px 20px; background: transparent; border: 1px solid var(--gray-light); color: var(--gray); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; cursor: pointer; text-transform: uppercase; }
+        .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+        .admin-content { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .stat-card { background: var(--black-light); border: 1px solid var(--gray-light); padding: 20px; }
+        .stat-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 3px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px; }
+        .stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; }
+        .stat-number.yellow { color: var(--yellow); }
+        .stat-number.green { color: var(--green); }
+        .stat-number.red { color: var(--red); }
+        .stat-number.orange { color: var(--orange); }
+
+        /* Stock editor */
+        .stock-editor { background: var(--black-light); border: 1px solid var(--gray-light); padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .stock-editor label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; color: var(--gray); text-transform: uppercase; }
+        .stock-editor input[type=number] { width: 80px; background: var(--black-mid); border: 1px solid var(--gray-light); color: var(--white); padding: 10px; font-size: 18px; text-align: center; outline: none; font-family: 'Bebas Neue', sans-serif; }
+        .stock-editor input[type=number]:focus { border-color: var(--yellow); }
+        .btn-small { padding: 10px 20px; background: var(--yellow); color: var(--black); border: none; font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px; cursor: pointer; }
+
+        /* Filters */
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-btn { padding: 8px 18px; background: var(--black-mid); border: 1px solid var(--gray-light); color: var(--gray); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 2px; text-decoration: none; text-transform: uppercase; }
+        .filter-btn.active { border-color: var(--yellow); color: var(--yellow); }
+        .search-input { background: var(--black-mid); border: 1px solid var(--gray-light); color: var(--white); padding: 8px 14px; font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; min-width: 220px; }
+        .search-input:focus { border-color: var(--yellow); }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: var(--black-mid);
+            padding: 12px 16px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--gray);
+            text-transform: uppercase;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        tbody tr { border-bottom: 1px solid var(--gray-light); }
+        tbody tr:hover { background: var(--black-light); }
+        td { padding: 12px 16px; font-size: 14px; vertical-align: middle; }
+        .order-id { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gray); }
+        .order-name { font-weight: 600; color: var(--white); }
+        .order-email, .order-phone { color: var(--gray); font-size: 13px; }
+        .size-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--yellow);
+            color: var(--black);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 18px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .status-pending { color: var(--orange); border: 1px solid var(--orange); background: rgba(255,136,0,0.1); }
+        .status-confirmed { color: var(--green); border: 1px solid var(--green); background: rgba(0,200,81,0.1); }
+        .status-cancelled { color: var(--red); border: 1px solid var(--red); background: rgba(255,68,68,0.1); }
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-confirm { padding: 6px 12px; background: var(--green); color: var(--black); border: none; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 1px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+        .btn-cancel { padding: 6px 12px; background: transparent; border: 1px solid var(--red); color: var(--red); font-family: 'Barlow Condensed', sans-serif; font-size: 12px; letter-spacing: 1px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+        .date { font-size: 12px; color: var(--gray); }
+        .notes-form { display: flex; gap: 6px; }
+        .notes-input { background: var(--black-mid); border: 1px solid var(--gray-light); color: var(--white); padding: 4px 8px; font-size: 12px; font-family: 'Barlow', sans-serif; outline: none; min-width: 120px; }
+
+        .empty-state { padding: 60px 20px; text-align: center; color: var(--gray); }
+        .empty-state p { font-family: 'Bebas Neue', sans-serif; font-size: 28px; margin-bottom: 8px; }
+
+        /* Export */
+        .export-link { 
+            display: inline-block;
+            padding: 8px 18px;
+            background: transparent;
+            border: 1px solid var(--green);
+            color: var(--green);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 16px; }
+            .admin-header { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<?php if (!$loggedIn): ?>
+<!-- Login screen -->
+<div class="login-wrapper">
+    <div class="login-box">
+        <div class="login-title">ADMIN</div>
+        <div class="login-sub">Money Moicano MMA · Loja</div>
+        <?php if (!empty($loginError)): ?>
+            <div class="login-error">⚠️ <?= htmlspecialchars($loginError) ?></div>
+        <?php endif; ?>
+        <form method="POST">
+            <input type="password" name="password" class="login-input" placeholder="Senha de acesso" autofocus>
+            <button type="submit" class="login-btn">ENTRAR</button>
+        </form>
+    </div>
+</div>
+
+<?php else: ?>
+<!-- Admin panel -->
+<div class="admin-header">
+    <div>
+        <div class="admin-title">ADMIN <span>· Money Moicano MMA</span></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;">
+        <a href="index.php" style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:var(--gray);text-decoration:none;text-transform:uppercase;">← Ver Loja</a>
+        <form method="POST" style="display:inline">
+            <button type="submit" name="logout" value="1" class="btn-logout">Sair</button>
+        </form>
+    </div>
+</div>
+
+<div class="admin-content">
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Disponíveis</div>
+            <div class="stat-number yellow"><?= $stock ?></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Confirmados</div>
+            <div class="stat-number green"><?= $totalMap['confirmed'] ?? 0 ?></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Aguardando</div>
+            <div class="stat-number orange"><?= $totalMap['pending'] ?? 0 ?></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Cancelados</div>
+            <div class="stat-number red"><?= $totalMap['cancelled'] ?? 0 ?></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total pedidos</div>
+            <div class="stat-number"><?= array_sum($totalMap) ?></div>
+        </div>
+    </div>
+
+    <!-- Editar estoque manualmente -->
+    <form method="POST" class="stock-editor">
+        <label>Editar estoque manualmente:</label>
+        <input type="number" name="set_stock" value="<?= $stock ?>" min="0" max="<?= STOCK_TOTAL ?>">
+        <button type="submit" class="btn-small">SALVAR</button>
+        <span style="font-size:12px;color:var(--gray);">Use isso se precisar corrigir manualmente após confirmar/cancelar pedidos.</span>
+    </form>
+
+    <!-- Filtros e busca -->
+    <div class="filters">
+        <a href="admin.php?filter=all<?= $search ? '&q='.urlencode($search) : '' ?>" class="filter-btn <?= $filter==='all'?'active':'' ?>">Todos</a>
+        <a href="admin.php?filter=pending<?= $search ? '&q='.urlencode($search) : '' ?>" class="filter-btn <?= $filter==='pending'?'active':'' ?>">Aguardando</a>
+        <a href="admin.php?filter=confirmed<?= $search ? '&q='.urlencode($search) : '' ?>" class="filter-btn <?= $filter==='confirmed'?'active':'' ?>">Confirmados</a>
+        <a href="admin.php?filter=cancelled<?= $search ? '&q='.urlencode($search) : '' ?>" class="filter-btn <?= $filter==='cancelled'?'active':'' ?>">Cancelados</a>
+        <form method="GET" style="display:flex;gap:8px;">
+            <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
+            <input type="text" name="q" class="search-input" placeholder="Buscar nome, e-mail, telefone..." value="<?= htmlspecialchars($search) ?>">
+            <button type="submit" class="btn-small">🔍</button>
+        </form>
+        <a href="export.php" class="export-link">⬇ Exportar CSV</a>
+    </div>
+
+    <!-- Tabela de pedidos -->
+    <div class="table-wrap">
+        <?php if (empty($orders)): ?>
+            <div class="empty-state">
+                <p>Nenhum pedido encontrado</p>
+                <span>Os pedidos aparecerão aqui assim que alguém comprar.</span>
+            </div>
+        <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nome</th>
+                    <th>E-mail / WhatsApp</th>
+                    <th>Tam.</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                    <th>Notas</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($orders as $order): ?>
+                <tr>
+                    <td class="order-id"><?= $order['id'] ?></td>
+                    <td>
+                        <div class="order-name"><?= htmlspecialchars($order['name']) ?></div>
+                    </td>
+                    <td>
+                        <div class="order-email"><?= htmlspecialchars($order['email']) ?></div>
+                        <div class="order-phone"><?= htmlspecialchars($order['phone']) ?></div>
+                    </td>
+                    <td><span class="size-badge"><?= htmlspecialchars($order['size']) ?></span></td>
+                    <td>
+                        <span class="status-badge status-<?= $order['status'] ?>">
+                            <?php
+                                echo match($order['status']) {
+                                    'confirmed' => '✓ Confirmado',
+                                    'cancelled' => '✗ Cancelado',
+                                    default => '⏳ Aguardando'
+                                };
+                            ?>
+                        </span>
+                    </td>
+                    <td class="date">
+                        <?= date('d/m H:i', strtotime($order['created_at'])) ?>
+                        <?php if ($order['confirmed_at']): ?>
+                            <br><span style="color:var(--green)">✓ <?= date('d/m H:i', strtotime($order['confirmed_at'])) ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <form method="POST" class="notes-form">
+                            <input type="hidden" name="note_order_id" value="<?= $order['id'] ?>">
+                            <input type="text" name="note" class="notes-input" placeholder="Anotação..." value="<?= htmlspecialchars($order['notes'] ?? '') ?>">
+                            <button type="submit" name="save_note" class="btn-small" style="font-size:12px;padding:4px 8px;">💾</button>
+                        </form>
+                    </td>
+                    <td>
+                        <div class="actions">
+                            <?php if ($order['status'] !== 'confirmed'): ?>
+                            <form method="POST">
+                                <button type="submit" name="confirm_order" value="<?= $order['id'] ?>" class="btn-confirm"
+                                        onclick="return confirm('Confirmar pagamento de <?= addslashes($order['name']) ?>?')">
+                                    ✓ Confirmar
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                            <?php if ($order['status'] !== 'cancelled'): ?>
+                            <form method="POST">
+                                <button type="submit" name="cancel_order" value="<?= $order['id'] ?>" class="btn-cancel"
+                                        onclick="return confirm('Cancelar pedido e devolver ao estoque?')">
+                                    ✗ Cancelar
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+</body>
+</html>
+
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+
+header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+
+$stock = getStock();
+
+echo json_encode([
+    'stock'    => $stock,
+    'total'    => STOCK_TOTAL,
+    'sold_out' => $stock <= 0,
+    'low'      => $stock > 0 && $stock <= 10,
+    'percent'  => round(($stock / STOCK_TOTAL) * 100),
+]);
+
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+
+$stock = getStock();
+if ($stock <= 0) {
+    header('Location: index.php?esgotado=1');
+    exit;
+}
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name           = trim($_POST['name'] ?? '');
+    $email          = trim($_POST['email'] ?? '');
+    $phone          = trim($_POST['phone'] ?? '');
+    $size           = trim($_POST['size'] ?? '');
+    $wantsSignature = !empty($_POST['wants_signature']);
+
+    $validSizes = SIZES;
+
+    if (empty($name) || strlen($name) < 3) {
+        $error = 'Por favor, informe seu nome completo.';
+    } elseif (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Por favor, informe um e-mail válido.';
+    } elseif (empty($phone) || strlen(preg_replace('/\D/', '', $phone)) < 10) {
+        $error = 'Por favor, informe um telefone válido com DDD.';
+    } elseif (!in_array($size, $validSizes)) {
+        $error = 'Por favor, selecione um tamanho.';
+    } else {
+        $currentStock = getStock();
+        if ($currentStock <= 0) {
+            header('Location: index.php?esgotado=1');
+            exit;
+        }
+
+        $nota = $wantsSignature ? '✍️ QUER ASSINATURA DO MOICANO' : '';
+
+        $pdo  = getDB();
+        $stmt = $pdo->prepare("INSERT INTO orders (name, email, phone, size, status, notes) VALUES (?, ?, ?, ?, 'pending', ?)");
+        $stmt->execute([$name, $email, $phone, $size, $nota]);
+        $orderId = $pdo->lastInsertId();
+
+        decrementStock();
+
+        session_start();
+        $_SESSION['order'] = ['id' => $orderId, 'name' => $name, 'size' => $size];
+
+        header('Location: ' . MP_PAYMENT_LINK);
+        exit;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finalizar Compra · <?= SITE_TITLE ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --yellow: #FFD000;
+            --yellow-bright: #FFE033;
+            --black: #0A0A0A;
+            --black-light: #111111;
+            --black-mid: #1A1A1A;
+            --white: #F5F5F0;
+            --gray: #888880;
+            --gray-light: #333330;
+            --error: #FF4444;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--black);
+            color: var(--white);
+            font-family: 'Barlow', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .checkout-wrapper {
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            letter-spacing: 2px;
+            color: var(--gray);
+            text-decoration: none;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: var(--yellow); }
+
+        .checkout-header { margin-bottom: 40px; }
+
+        .checkout-step {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            color: var(--yellow);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .checkout-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 52px;
+            line-height: 0.95;
+            color: var(--white);
+        }
+
+        .checkout-title span { color: var(--yellow); }
+
+        .checkout-subtitle {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+
+        /* Stock badge */
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--black-mid);
+            border: 1px solid var(--gray-light);
+            padding: 8px 16px;
+            margin-bottom: 32px;
+        }
+
+        .stock-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--yellow);
+            border-radius: 50%;
+            animation: blink 1.2s ease-in-out infinite;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        .stock-badge span {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--white);
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--gray);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        select {
+            width: 100%;
+            background: var(--black-mid);
+            border: 1px solid var(--gray-light);
+            color: var(--white);
+            padding: 16px 18px;
+            font-family: 'Barlow', sans-serif;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+            -webkit-appearance: none;
+        }
+
+        input::placeholder { color: var(--gray); }
+
+        input:focus, select:focus { border-color: var(--yellow); }
+
+        select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888880' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 18px center;
+        }
+
+        select option { background: var(--black-mid); }
+
+        /* Size selector */
+        .size-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .size-option { display: none; }
+
+        .size-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 52px;
+            background: var(--black-mid);
+            border: 1px solid var(--gray-light);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 1px;
+        }
+
+        .size-option:checked + .size-label {
+            background: var(--yellow);
+            color: var(--black);
+            border-color: var(--yellow);
+        }
+
+        .size-label:hover { border-color: var(--yellow); color: var(--white); }
+
+        .size-out {
+            opacity: .35; cursor: not-allowed !important;
+            pointer-events: none;
+        }
+        .size-qty-tag {
+            display: block; font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px; font-weight: 700; color: var(--yellow);
+            margin-top: 2px; letter-spacing: 0;
+        }
+        .size-option:checked + .size-label .size-qty-tag { color: var(--black); }
+        .size-out-tag {
+            display: block; font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px; font-weight: 700; color: var(--gray);
+            margin-top: 2px;
+        }
+
+        /* Error */
+        .error-box {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-family: 'Barlow', sans-serif;
+            font-size: 14px;
+            color: var(--error);
+        }
+
+        /* Signature checkbox */
+        .signature-check-label {
+            display: block;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .signature-check-label input[type="checkbox"] { display: none; }
+
+        .signature-check-box {
+            border: 1px solid var(--gray-light);
+            background: var(--black-mid);
+            transition: border-color .2s, background .2s;
+        }
+        .signature-check-inner {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 18px;
+        }
+        .signature-check-icon { font-size: 26px; flex-shrink: 0; }
+        .signature-check-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px; font-weight: 900; letter-spacing: 1px;
+            color: var(--white); text-transform: uppercase;
+        }
+        .signature-check-desc {
+            font-family: 'Barlow', sans-serif;
+            font-size: 12px; color: var(--gray);
+            margin-top: 3px; line-height: 1.4;
+        }
+        .signature-check-mark {
+            margin-left: auto; flex-shrink: 0;
+            width: 28px; height: 28px;
+            border: 1px solid var(--gray-light);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: transparent;
+            transition: all .2s;
+        }
+        /* checked state */
+        .signature-check-label input:checked ~ .signature-check-box {
+            border-color: var(--yellow);
+            background: rgba(255,208,0,.06);
+        }
+        .signature-check-label input:checked ~ .signature-check-box .signature-check-title {
+            color: var(--yellow);
+        }
+        .signature-check-label input:checked ~ .signature-check-box .signature-check-mark {
+            background: var(--yellow);
+            border-color: var(--yellow);
+            color: var(--black);
+        }
+        .signature-check-label:hover .signature-check-box {
+            border-color: rgba(255,208,0,.4);
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            padding: 22px;
+            background: var(--yellow);
+            color: var(--black);
+            border: none;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 26px;
+            letter-spacing: 4px;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover { background: var(--yellow-bright); transform: translateY(-2px); }
+        .btn-submit:active { transform: translateY(0); }
+
+        .submit-note {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--gray);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* Info boxes */
+        .info-boxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .info-box {
+            padding: 14px;
+            border: 1px solid var(--gray-light);
+            background: var(--black-light);
+        }
+
+        .info-box-icon { font-size: 18px; margin-bottom: 6px; }
+
+        .info-box-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--gray);
+            text-transform: uppercase;
+        }
+
+        .info-box-text {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+<div class="checkout-wrapper">
+    <a href="index.php" class="back-link">← Voltar</a>
+
+    <div class="checkout-header">
+        <div class="checkout-step">Passo 1 de 2</div>
+        <h1 class="checkout-title">Seus<br>dados <span>pra</span><br>retirada</h1>
+        <p class="checkout-subtitle">
+            Após preencher, você será redirecionado para o Mercado Pago para concluir o pagamento.
+        </p>
+    </div>
+
+    <div class="stock-badge">
+        <div class="stock-badge-dot"></div>
+        <span><?= $stock ?> unidade<?= $stock !== 1 ? 's' : '' ?> disponível<?= $stock !== 1 ? 'is' : '' ?></span>
+    </div>
+
+    <?php if ($error): ?>
+        <div class="error-box">⚠️ <?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <form method="POST" action="checkout.php">
+        <div class="form-group">
+            <label for="name">Nome completo</label>
+            <input type="text" id="name" name="name" placeholder="Seu nome completo"
+                   value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" placeholder="seu@email.com"
+                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">WhatsApp / Telefone (com DDD)</label>
+            <input type="tel" id="phone" name="phone" placeholder="(45) 99999-9999"
+                   value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label>Tamanho da camiseta</label>
+            <div class="size-grid">
+                <?php foreach (SIZE_STOCK as $s => $qty): ?>
+                    <div>
+                        <input type="radio" class="size-option" name="size" id="size_<?= $s ?>" value="<?= $s ?>"
+                               <?= (($_POST['size'] ?? '') === $s) ? 'checked' : '' ?>
+                               <?= $qty <= 0 ? 'disabled' : '' ?>>
+                        <label class="size-label <?= $qty <= 0 ? 'size-out' : '' ?>" for="size_<?= $s ?>">
+                            <?= $s ?>
+                            <?php if ($qty <= 0): ?>
+                                <span class="size-out-tag">Esg.</span>
+                            <?php else: ?>
+                                <span class="size-qty-tag"><?= $qty ?></span>
+                            <?php endif; ?>
+                        </label>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Checkbox: assinatura do Moicano -->
+        <label class="signature-check-label" for="wants_signature">
+            <input type="checkbox" id="wants_signature" name="wants_signature" value="1"
+                   <?= !empty($_POST['wants_signature']) ? 'checked' : '' ?>>
+            <div class="signature-check-box">
+                <div class="signature-check-inner">
+                    <span class="signature-check-icon">✍️</span>
+                    <div>
+                        <div class="signature-check-title">Quero a assinatura do Moicano</div>
+                        <div class="signature-check-desc">Brinde exclusivo de pré-venda · Sem custo adicional · Na hora da retirada</div>
+                    </div>
+                    <div class="signature-check-mark">✓</div>
+                </div>
+            </div>
+        </label>
+
+        <button type="submit" class="btn-submit">PAGAR COM MERCADO PAGO →</button>
+        <p class="submit-note">
+            🔒 Seus dados são usados apenas para a retirada no evento.<br>
+            Retirada no Cornerman · São Paulo · 23 de Maio de 2026
+        </p>
+    </form>
+
+    <div class="info-boxes">
+        <div class="info-box">
+            <div class="info-box-icon">📍</div>
+            <div class="info-box-title">Retirada</div>
+            <div class="info-box-text">Cornerman, SP · Dia do evento · 23/05/2026</div>
+        </div>
+        <div class="info-box">
+            <div class="info-box-icon">📦</div>
+            <div class="info-box-title">Estoque limitado</div>
+            <div class="info-box-text">Apenas 50 unidades no total. Sem reposição.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Máscara de telefone simples
+document.getElementById('phone').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length <= 10) {
+        v = v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+    } else {
+        v = v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+    }
+    e.target.value = v;
+});
+</script>
+</body>
+</html>
+
+<?php
+// =============================================
+// CONFIGURAÇÕES DO SITE - EDITE AQUI
+// =============================================
+
+// Link de pagamento do Mercado Pago
+define('MP_PAYMENT_LINK', 'https://link.mercadopago.com.br/SEU-LINK-AQUI');
+
+// Senha do painel admin
+define('ADMIN_PASSWORD', 'mmmma2025');
+
+// Estoque inicial (total de camisetas disponíveis)
+define('STOCK_TOTAL', 50);
+
+// Estoque de início da exibição (unidades já "vendidas" antes de abrir)
+define('STOCK_START', 36);
+
+// Nome do produto
+define('PRODUCT_NAME', 'Camiseta Oficial Money Moicano MMA');
+
+// Preço original (riscado — para comparação)
+define('PRODUCT_PRICE_ORIGINAL', 'R$ 129,90');
+
+// Preço promocional de pré-venda
+define('PRODUCT_PRICE', 'R$ 119,90');
+
+// Link de pagamento SEM assinatura
+// (já definido acima como MP_PAYMENT_LINK)
+
+// Tamanhos disponíveis e estoque por tamanho
+define('SIZES', ['P', 'M', 'G', 'GG', 'XGG']);
+
+// Estoque inicial por tamanho
+define('SIZE_STOCK', [
+    'P'   => 2,
+    'M'   => 9,
+    'G'   => 18,
+    'GG'  => 3,
+    'XGG' => 0,
+]);
+
+// Caminho do banco de dados SQLite
+define('DB_PATH', __DIR__ . '/data/store.db');
+
+// Título do site
+define('SITE_TITLE', 'Camiseta Oficial MMMMA');
+
+<?php
+require_once __DIR__ . '/config.php';
+
+function getDB(): PDO {
+    $dir = dirname(DB_PATH);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+
+    $pdo = new PDO('sqlite:' . DB_PATH);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec("PRAGMA journal_mode=WAL");
+
+    // Tabela de pedidos
+    $pdo->exec("CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        size TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        confirmed_at DATETIME,
+        notes TEXT
+    )");
+
+    // Tabela de estoque (linha única)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS stock (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        available INTEGER NOT NULL DEFAULT " . STOCK_START . "
+    )");
+
+    // Inicia estoque se não existir
+    $pdo->exec("INSERT OR IGNORE INTO stock (id, available) VALUES (1, " . STOCK_START . ")");
+
+    return $pdo;
+}
+
+function getStock(): int {
+    $pdo = getDB();
+    $stmt = $pdo->query("SELECT available FROM stock WHERE id = 1");
+    return (int)($stmt->fetchColumn() ?? 0);
+}
+
+function decrementStock(): bool {
+    $pdo = getDB();
+    $stock = getStock();
+    if ($stock <= 0) return false;
+    $pdo->exec("UPDATE stock SET available = available - 1 WHERE id = 1 AND available > 0");
+    return true;
+}
+
+function incrementStock(): bool {
+    $pdo = getDB();
+    $pdo->exec("UPDATE stock SET available = MIN(available + 1, " . STOCK_TOTAL . ") WHERE id = 1");
+    return true;
+}
+
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+
+session_start();
+
+if (empty($_SESSION['admin'])) {
+    header('Location: admin.php');
+    exit;
+}
+
+$pdo = getDB();
+$orders = $pdo->query("SELECT * FROM orders ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+$filename = 'pedidos_mmmma_' . date('Ymd_His') . '.csv';
+
+header('Content-Type: text/csv; charset=utf-8');
+header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Pragma: no-cache');
+
+$out = fopen('php://output', 'w');
+
+// BOM para Excel reconhecer UTF-8
+fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+// Cabeçalho
+fputcsv($out, ['#', 'Nome', 'E-mail', 'Telefone', 'Tamanho', 'Status', 'Data do Pedido', 'Data Confirmação', 'Notas'], ';');
+
+foreach ($orders as $o) {
+    $status = match($o['status']) {
+        'confirmed' => 'Confirmado',
+        'cancelled'  => 'Cancelado',
+        default      => 'Aguardando',
+    };
+    fputcsv($out, [
+        $o['id'],
+        $o['name'],
+        $o['email'],
+        $o['phone'],
+        $o['size'],
+        $status,
+        $o['created_at'] ? date('d/m/Y H:i', strtotime($o['created_at'])) : '',
+        $o['confirmed_at'] ? date('d/m/Y H:i', strtotime($o['confirmed_at'])) : '',
+        $o['notes'] ?? '',
+    ], ';');
+}
+
+fclose($out);
+exit;
+
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+
+$stock   = getStock();
+$soldOut = $stock <= 0;
+
+$images = [
+    'uploads/img1.jpg',
+    'uploads/img2.jpg',
+    'uploads/img3.jpg',
+    'uploads/img4.jpg',
+    'uploads/img5.jpg',
+];
+$allImages = array_values(array_filter($images, fn($img) => file_exists(__DIR__ . '/' . $img)));
+$sizeStock = SIZE_STOCK;
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= SITE_TITLE ?></title>
+    <meta name="description" content="Camiseta Oficial do Money Moicano MMA. Apenas 50 unidades. Edição limitada.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --yellow:       #FFD000;
+            --yellow-glow:  rgba(255,208,0,.18);
+            --yellow-bright:#FFE033;
+            --black:        #080808;
+            --black-light:  #101010;
+            --black-mid:    #181818;
+            --white:        #F5F5F0;
+            --gray:         #888880;
+            --gray-light:   #2A2A28;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--black);
+            color: var(--white);
+            font-family: 'Barlow', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grain */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 9999;
+        }
+
+        /* Header */
+        header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+            padding: 18px 48px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(8,8,8,1) 60%, transparent);
+        }
+        .logo-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px; letter-spacing: 4px; color: var(--yellow);
+            text-decoration: none;
+        }
+        .logo-sub {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase;
+        }
+        .header-link {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px; letter-spacing: 3px; color: var(--gray);
+            text-decoration: none; text-transform: uppercase; transition: color .2s;
+        }
+        .header-link:hover { color: var(--yellow); }
+
+        /* Top bar */
+        .top-bar {
+            width: 100%; background: var(--yellow);
+            padding: 9px 40px;
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+        }
+        .top-bar span {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900; font-size: 13px; letter-spacing: 3px;
+            text-transform: uppercase; color: var(--black);
+        }
+        .top-bar .dot { width: 5px; height: 5px; background: var(--black); border-radius: 50%; }
+
+        /* Hero wrapper */
+        main {
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: 80px;
+        }
+
+        .hero {
+            position: relative;
+            width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* Yellow spotlight */
+        .hero-spotlight {
+            position: absolute;
+            top: 0; left: 50%; transform: translateX(-50%);
+            width: 1000px; height: 1000px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,208,0,.18) 0%,
+                rgba(255,208,0,.06) 40%,
+                transparent 70%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* Gallery */
+        .gallery-hero {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 900px;
+            padding: 44px 44px 0;
+        }
+
+        /* Corner brackets */
+        .gallery-main-wrap { position: relative; }
+        .gallery-main-wrap::before,
+        .gallery-main-wrap::after,
+        .corner-tr, .corner-bl {
+            content: '';
+            position: absolute;
+            width: 30px; height: 30px;
+            border-color: var(--yellow); border-style: solid;
+            z-index: 2;
+        }
+        .gallery-main-wrap::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+        .gallery-main-wrap::after  { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+        .corner-tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
+        .corner-bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
+
+        /* Main image */
+        .gallery-main {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: var(--black-mid);
+            overflow: hidden; position: relative;
+            cursor: zoom-in;
+            box-shadow:
+                0 0 0 1px var(--gray-light),
+                0 50px 140px rgba(0,0,0,.95),
+                inset 0 0 100px rgba(255,208,0,.04);
+        }
+        .gallery-main img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            display: block; padding: 24px;
+            transition: transform .5s cubic-bezier(.25,.46,.45,.94);
+        }
+        .gallery-main:hover img { transform: scale(1.07); }
+
+        .placeholder-img {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 20px;
+        }
+        .placeholder-img span {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px; letter-spacing: 6px;
+            color: var(--gray-light);
+        }
+
+        /* Yellow bottom line */
+        .gallery-main::after {
+            content: ''; position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px; background: var(--yellow);
+        }
+
+        <?php if ($soldOut): ?>
+        .gallery-main::before {
+            content: 'ESGOTADO';
+            position: absolute; inset: 0; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(8,8,8,.72);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 72px; letter-spacing: 10px; color: #FF4444;
+        }
+        <?php endif; ?>
+
+        /* Thumbnails */
+        .gallery-thumbs {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 8px; margin-top: 10px;
+        }
+        .thumb {
+            aspect-ratio: 1; background: var(--black-mid);
+            border: 1px solid var(--gray-light);
+            overflow: hidden; cursor: pointer;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .thumb:hover { border-color: rgba(255,208,0,.5); }
+        .thumb.active { border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,208,0,.25); }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .thumb-placeholder {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gray-light);
+        }
+
+        /* Product info card */
+        .product-card {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 900px;
+            padding: 0 44px 72px;
+            margin-top: 52px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 52px; align-items: start;
+        }
+
+        /* Badges & title */
+        .badge-limited {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--yellow); color: var(--black);
+            padding: 5px 14px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px; font-weight: 900; letter-spacing: 4px;
+            text-transform: uppercase; margin-bottom: 20px;
+        }
+        .badge-limited::before {
+            content: ''; width: 7px; height: 7px;
+            background: var(--black); border-radius: 50%;
+            animation: blink 1.2s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
+
+        .product-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(56px, 7vw, 96px);
+            line-height: .88; color: var(--white);
+            letter-spacing: 2px; margin-bottom: 10px;
+        }
+        .product-title span { color: var(--yellow); }
+
+        .product-subtitle {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px; font-weight: 600; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase; margin-bottom: 28px;
+        }
+
+        .divider-yellow { height: 2px; width: 50px; background: var(--yellow); margin-bottom: 28px; }
+        .divider { height: 1px; background: var(--gray-light); margin: 22px 0; }
+
+        /* Stock */
+        .stock-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase; margin-bottom: 10px;
+        }
+        .stock-numbers { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+        .stock-available {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 80px; line-height: 1; color: var(--yellow);
+        }
+        .stock-available.low { color: #FF4444; }
+        .stock-total {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px; font-weight: 600; color: var(--gray);
+        }
+        .stock-bar-track { height: 3px; background: var(--gray-light); border-radius: 2px; overflow: hidden; }
+        .stock-bar-fill { height: 100%; background: var(--yellow); border-radius: 2px; transition: width .6s; }
+        .stock-bar-fill.low { background: #FF4444; }
+        .stock-text { font-size: 12px; color: var(--gray); margin-top: 8px; }
+
+        /* Price */
+        .price-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase; margin-bottom: 4px;
+        }
+        .price-block { margin-bottom: 28px; }
+        .price-badge-promo {
+            display: inline-block;
+            background: #FF4444; color: #fff;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px; font-weight: 900; letter-spacing: 3px;
+            padding: 3px 10px; text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .price-original {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px; font-weight: 600;
+            color: var(--gray); text-decoration: line-through;
+            margin-bottom: 2px;
+        }
+        .price {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 64px; color: var(--white);
+            line-height: 1; letter-spacing: 1px;
+        }
+        .price-note {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px; letter-spacing: 2px; color: var(--gray);
+            text-transform: uppercase; margin-top: 4px;
+        }
+
+        /* Size stock */
+        .size-stock-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase; margin-bottom: 12px;
+        }
+        .size-stock-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 6px; margin-bottom: 28px;
+        }
+        .size-pill {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 12px 4px; gap: 4px;
+            border: 1px solid var(--gray-light);
+            background: var(--black-mid);
+        }
+        .size-pill.has-stock { border-color: rgba(255,208,0,.3); }
+        .size-pill.out { opacity: .4; }
+        .size-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px; color: var(--white); letter-spacing: 1px;
+        }
+        .size-qty {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px; font-weight: 700; letter-spacing: 1px;
+            color: var(--yellow);
+        }
+        .size-pill.out .size-qty { color: var(--gray); }
+
+                /* CTA */
+        .cta-block { display: flex; flex-direction: column; gap: 0; }
+
+        .gift-banner {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(255,208,0,.07);
+            border: 1px solid rgba(255,208,0,.35);
+            border-bottom: none;
+            padding: 14px 18px;
+        }
+        .gift-banner-icon { font-size: 26px; flex-shrink: 0; }
+        .gift-banner-text {}
+        .gift-banner-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px; font-weight: 900; letter-spacing: 2px;
+            color: var(--yellow); text-transform: uppercase;
+        }
+        .gift-banner-desc {
+            font-family: 'Barlow', sans-serif;
+            font-size: 12px; color: var(--gray); margin-top: 2px; line-height: 1.4;
+        }
+
+        .btn-buy {
+            display: block; width: 100%;
+            padding: 22px 32px;
+            background: var(--yellow); color: var(--black);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 26px; letter-spacing: 4px;
+            text-decoration: none; text-align: center;
+            border: none; cursor: pointer;
+            transition: background .15s, transform .1s, box-shadow .15s;
+            box-shadow: 0 8px 40px rgba(255,208,0,.25);
+        }
+        .btn-buy:hover {
+            background: var(--yellow-bright);
+            transform: translateY(-3px);
+            box-shadow: 0 14px 50px rgba(255,208,0,.45);
+        }
+        .btn-buy:active { transform: translateY(0); }
+        .btn-soldout {
+            display: block; width: 100%; padding: 22px 32px;
+            background: var(--gray-light); color: var(--gray);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 26px; letter-spacing: 4px;
+            text-align: center; cursor: not-allowed;
+        }
+        .btn-note {
+            margin-top: 12px; font-size: 11px; color: var(--gray);
+            text-align: center; line-height: 1.6;
+        }
+
+        /* Fabric description */
+        .fabric-desc {
+            margin-bottom: 24px;
+        }
+        .fabric-desc-tag {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 4px;
+            color: var(--gray); text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .fabric-desc p {
+            font-family: 'Barlow', sans-serif;
+            font-size: 13.5px; color: #AAAAAA;
+            line-height: 1.7; margin-bottom: 10px;
+        }
+        .fabric-desc p strong { color: var(--white); font-weight: 600; }
+        .fabric-tagline {
+            font-family: 'Barlow Condensed', sans-serif !important;
+            font-size: 15px !important; font-weight: 700;
+            letter-spacing: 2px; color: var(--yellow) !important;
+            text-transform: uppercase; margin-bottom: 0 !important;
+        }
+
+        /* Details */
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
+        .detail-item { padding: 14px; border: 1px solid var(--gray-light); background: var(--black-light); }
+        .detail-item-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 3px;
+            color: var(--gray); text-transform: uppercase; margin-bottom: 3px;
+        }
+        .detail-item-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px; font-weight: 700; color: var(--white);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--gray-light);
+            padding: 28px 40px; text-align: center;
+        }
+        footer p {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px; letter-spacing: 2px; color: var(--gray);
+        }
+        footer a { color: var(--yellow); text-decoration: none; }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            header { padding: 14px 20px; }
+            .gallery-hero { padding: 24px 20px 0; }
+            .gallery-main { aspect-ratio: 1; }
+            .product-card { grid-template-columns: 1fr; gap: 32px; padding: 0 20px 48px; margin-top: 32px; }
+            .product-title { font-size: 64px; }
+            .stock-available { font-size: 60px; }
+            footer { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <div class="logo-text">MONEY MOICANO MMA</div>
+        <div class="logo-sub">Loja Oficial</div>
+    </div>
+    <a href="https://moneymoicanomma.com.br" class="header-link">← Voltar ao Site</a>
+</header>
+
+<main>
+    <div class="top-bar">
+        <div class="dot"></div>
+        <span>Edição limitada · Apenas 50 unidades · Retirada no evento · 23 Maio 2026</span>
+        <div class="dot"></div>
+    </div>
+
+    <div class="hero">
+        <div class="hero-spotlight"></div>
+
+        <!-- GALLERY — protagonista da página -->
+        <div class="gallery-hero">
+            <div class="gallery-main-wrap">
+                <div class="corner-tr"></div>
+                <div class="corner-bl"></div>
+
+                <div class="gallery-main" id="mainImg">
+                    <?php if (!empty($allImages)): ?>
+                        <img id="mainImgEl" src="<?= htmlspecialchars($allImages[0]) ?>" alt="Camiseta Oficial MMMMA">
+                    <?php else: ?>
+                        <div class="placeholder-img">
+                            <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#FFD000" stroke-width=".6">
+                                <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+                            </svg>
+                            <span>Arte em breve</span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="gallery-thumbs">
+                <?php for ($i = 0; $i < 5; $i++): ?>
+                    <div class="thumb <?= $i === 0 ? 'active' : '' ?>"
+                         <?php if (isset($allImages[$i])): ?>
+                             onclick="setMainImg('<?= htmlspecialchars($allImages[$i]) ?>', this)"
+                         <?php endif; ?>>
+                        <?php if (isset($allImages[$i])): ?>
+                            <img src="<?= htmlspecialchars($allImages[$i]) ?>" alt="Vista <?= $i+1 ?>">
+                        <?php else: ?>
+                            <div class="thumb-placeholder"><?= $i+1 ?></div>
+                        <?php endif; ?>
+                    </div>
+                <?php endfor; ?>
+            </div>
+        </div>
+
+        <!-- PRODUCT INFO -->
+        <div class="product-card">
+
+            <!-- Esquerda: identidade + stock -->
+            <div>
+                <div class="badge-limited">Edição Limitada</div>
+
+                <h1 class="product-title">
+                    Camiseta<br><span>Oficial</span><br>MMMMA
+                </h1>
+                <div class="product-subtitle">Money Moicano MMA · 23.05.2026</div>
+                <div class="divider-yellow"></div>
+
+                <div class="stock-label">Unidades disponíveis</div>
+                <div class="stock-numbers">
+                    <div class="stock-available <?= $stock <= 10 ? 'low' : '' ?>" id="stockCount"><?= $stock ?></div>
+                    <div class="stock-total">/ <?= STOCK_TOTAL ?></div>
+                </div>
+                <div class="stock-bar-track">
+                    <div class="stock-bar-fill <?= $stock <= 10 ? 'low' : '' ?>"
+                         style="width:<?= round(($stock / STOCK_TOTAL) * 100) ?>%"></div>
+                </div>
+                <div class="stock-text" id="stockText">
+                    <?php if ($soldOut): ?>⚠️ Estoque esgotado
+                    <?php elseif ($stock <= 10): ?>🔥 Últimas unidades! Corre.
+                    <?php else: ?>Restam <?= $stock ?> de <?= STOCK_TOTAL ?> unidades
+                    <?php endif; ?>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Descrição da camiseta -->
+                <div class="fabric-desc">
+                    <div class="fabric-desc-tag">SOBRE A CAMISETA</div>
+                    <p>Modelagem <strong>Oversized</strong> desenvolvida em malha penteada premium 100% algodão (fio 30.1). Com gramatura média de 180g/m², oferece estrutura sem perder a leveza.</p>
+                    <p>O grande diferencial está no acabamento: a estampa em <strong>silk</strong> aplicada diretamente no tecido tingido garante um toque suave e natural, eliminando por completo aquele aspecto grosso e empastificado.</p>
+                    <p class="fabric-tagline">Feita para respirar e durar.</p>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-item-label">Retirada</div>
+                        <div class="detail-item-value">No evento · 23/05</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Local</div>
+                        <div class="detail-item-value">Cornerman SP</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Tiragem total</div>
+                        <div class="detail-item-value">50 unidades</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Modelagem</div>
+                        <div class="detail-item-value">Oversized</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Direita: preço + tamanhos + CTA -->
+            <div>
+                <!-- Preço — fica aqui, acima de onde a pessoa clica -->
+                <div class="price-label">Preço de pré-venda</div>
+                <div class="price-block">
+                    <div class="price-badge-promo">🔥 Pré-venda</div>
+                    <div class="price-original"><?= PRODUCT_PRICE_ORIGINAL ?></div>
+                    <div class="price"><?= PRODUCT_PRICE ?></div>
+                    <div class="price-note">Oferta encerra no dia do evento</div>
+                </div>
+
+                <div class="size-stock-label">Disponibilidade por tamanho</div>
+                <div class="size-stock-grid">
+                    <?php foreach ($sizeStock as $sz => $qty): ?>
+                        <div class="size-pill <?= $qty > 0 ? 'has-stock' : 'out' ?>">
+                            <div class="size-name"><?= $sz ?></div>
+                            <div class="size-qty"><?= $qty > 0 ? $qty . ' un.' : 'Esg.' ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if (!$soldOut): ?>
+
+                    <!-- Brinde: assinatura do Moicano -->
+                    <div class="gift-banner">
+                        <div class="gift-banner-icon">✍️</div>
+                        <div class="gift-banner-text">
+                            <div class="gift-banner-title">🎁 Brinde de pré-venda — Assinatura do Moicano</div>
+                            <div class="gift-banner-desc">Quem comprar agora pode escolher receber o autógrafo do Moicano na retirada. Sem custo adicional.</div>
+                        </div>
+                    </div>
+                    <a href="checkout.php" class="btn-buy">GARANTIR MINHA CAMISETA →</a>
+                    <div class="btn-note">
+                        🔒 Pagamento via Mercado Pago · Retirada no evento 23/05/2026
+                    </div>
+
+                <?php else: ?>
+                    <div class="btn-soldout">ESGOTADO</div>
+                    <div class="btn-note">Todas as unidades foram vendidas.</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>
+        &copy; 2026 <a href="https://moneymoicanomma.com.br">Money Moicano MMA</a> · Todos os direitos reservados
+    </p>
+</footer>
+
+<script>
+function setMainImg(src, thumbEl) {
+    const el = document.getElementById('mainImgEl');
+    if (el) el.src = src;
+    document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+    thumbEl.classList.add('active');
+}
+
+function refreshStock() {
+    fetch('api_stock.php?_=' + Date.now())
+        .then(r => r.json())
+        .then(data => {
+            const el   = document.getElementById('stockCount');
+            const bar  = document.querySelector('.stock-bar-fill');
+            const text = document.getElementById('stockText');
+            if (el)   { el.textContent = data.stock; el.classList.toggle('low', data.low || data.sold_out); }
+            if (bar)  { bar.style.width = data.percent + '%'; bar.classList.toggle('low', data.low || data.sold_out); }
+            if (text) {
+                text.textContent = data.sold_out ? '⚠️ Estoque esgotado'
+                    : data.low ? '🔥 Últimas unidades! Corre.'
+                    : 'Restam ' + data.stock + ' de <?= STOCK_TOTAL ?> unidades';
+            }
+        })
+        .catch(() => {});
+}
+setInterval(refreshStock, 30000);
+</script>
+</body>
+</html>
+
+# 🥊 Loja Oficial MMMMA — Camiseta Limitada
+
+Mini e-commerce em PHP puro + SQLite para venda da camiseta oficial do **Money Moicano MMA**.
+
+---
+
+## 📁 Estrutura de arquivos
+
+```
+/
+├── index.php         ← Página principal da loja
+├── checkout.php      ← Formulário de compra (captura dados do comprador)
+├── admin.php         ← Painel administrativo (ver pedidos, confirmar retirada)
+├── export.php        ← Exporta todos os pedidos em CSV (abre no Excel)
+├── api_stock.php     ← Endpoint JSON com estoque atual (atualiza ao vivo)
+├── config.php        ← ⚙️  CONFIGURAÇÕES — edite aqui
+├── db.php            ← Banco de dados SQLite
+├── .htaccess         ← Segurança Apache
+├── data/
+│   ├── store.db      ← Banco SQLite (criado automaticamente)
+│   └── .htaccess     ← Bloqueia acesso direto ao .db
+└── uploads/
+    ├── img1.jpg      ← Imagem 1 da camiseta
+    ├── img2.jpg      ← Imagem 2
+    ├── img3.jpg      ← Imagem 3
+    ├── img4.jpg      ← Imagem 4
+    └── img5.jpg      ← Imagem 5
+```
+
+---
+
+## ⚙️ Configuração rápida (`config.php`)
+
+Abra o arquivo `config.php` e edite:
+
+```php
+// 1. Cole aqui o link do Mercado Pago
+define('MP_PAYMENT_LINK', 'https://link.mercadopago.com.br/SEU-LINK-AQUI');
+
+// 2. Senha do painel admin (mude isso!)
+define('ADMIN_PASSWORD', 'mmmma2025');
+
+// 3. Preço exibido na loja
+define('PRODUCT_PRICE', 'R$ 150,00');
+```
+
+---
+
+## 🖼️ Como adicionar as imagens
+
+Faça upload das 5 imagens da camiseta dentro da pasta `uploads/` com os nomes:
+
+- `uploads/img1.jpg`
+- `uploads/img2.jpg`
+- `uploads/img3.jpg`
+- `uploads/img4.jpg`
+- `uploads/img5.jpg`
+
+Formatos aceitos: JPG, PNG, WEBP. Tamanho recomendado: **1000x1000px**.  
+Enquanto não houver imagens, a galeria exibe placeholders cinza.
+
+---
+
+## 🔗 Link do Mercado Pago
+
+1. Entre no Mercado Pago → **Cobranças** → **Link de pagamento**
+2. Crie um link com o valor da camiseta
+3. Copie o link (ex: `https://mpago.la/xxxxx`)
+4. Cole em `config.php` na variável `MP_PAYMENT_LINK`
+
+> **Importante:** o site registra os dados do comprador *antes* de redirecionar para o Mercado Pago. O estoque já é decrementado nesse momento.
+
+---
+
+## 🔐 Painel Admin
+
+Acesse: `https://seusite.com.br/admin.php`
+
+**Funcionalidades:**
+- 📊 Painel com contadores (confirmados, aguardando, cancelados, estoque)
+- 👤 Lista completa de compradores com nome, e-mail, WhatsApp e tamanho
+- ✅ **Confirmar** pedido (quando a pessoa retirar a camiseta no evento)
+- ❌ **Cancelar** pedido (devolve automaticamente ao estoque)
+- 📝 **Anotações** por pedido
+- 🔍 Busca por nome, e-mail ou telefone
+- ⬇️ **Exportar CSV** (abre no Excel/Sheets) com todos os dados
+- 🔢 Editar estoque manualmente se necessário
+
+---
+
+## 🚀 Como fazer o deploy (hospedagem compartilhada)
+
+1. Faça upload de todos os arquivos via **FTP** ou **Gerenciador de Arquivos** do cPanel
+2. Certifique-se de que a pasta `data/` tem permissão de **escrita** (chmod 755 ou 775)
+3. Edite `config.php` com sua senha e link do Mercado Pago
+4. Faça upload das imagens em `uploads/`
+5. Acesse `https://seusite.com.br` e teste!
+
+**Requisitos do servidor:**
+- PHP 8.0+
+- Extensão `pdo_sqlite` habilitada (padrão na maioria das hospedagens)
+- Apache com `mod_rewrite` (para o .htaccess funcionar)
+
+---
+
+## 📋 Fluxo de compra
+
+```
+Comprador acessa index.php
+       ↓
+Clica em "QUERO MINHA CAMISETA"
+       ↓
+Preenche nome, e-mail, WhatsApp, tamanho (checkout.php)
+       ↓
+Sistema salva os dados no banco + decrementa estoque
+       ↓
+Redirecionado para o Mercado Pago para pagar
+       ↓
+[Admin] Confirma o recebimento do pagamento no painel
+       ↓
+[Evento] Comprador retira com nome na lista
+```
+
+---
+
+## 🎯 Dia do evento — Retirada
+
+1. Acesse `admin.php` no celular ou tablet
+2. Use a **busca** para encontrar o comprador pelo nome ou WhatsApp
+3. Clique em **✓ Confirmar** ao entregar a camiseta
+4. Ou use o CSV exportado impresso como lista física
+
+---
+
+## ❓ Dúvidas frequentes
+
+**O estoque está errado, como corrijo?**  
+No painel admin, use o campo "Editar estoque manualmente" para ajustar o número.
+
+**Posso trocar a cor amarela do site?**  
+Sim, edite a variável `--yellow: #FFD000` no CSS de cada arquivo.
+
+**Como alterar o preço?**  
+Apenas visual: edite `PRODUCT_PRICE` em `config.php`. O preço real é definido no link do Mercado Pago.
+
+**E se alguém preencher mas não pagar?**  
+O pedido fica com status **Aguardando**. Você pode cancelá-lo no admin (estoque é devolvido automaticamente).
